@@ -1,4 +1,27 @@
-# Generative PointNet: Deep Energy-Based Learning on Unordered Point Sets for 3D Generation, Reconstruction and Classification
+# Generative PointNet++: Energy-Based 3D Point Cloud Generation
+
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![arXiv](https://img.shields.io/badge/arXiv-230X.XXXXX-b31b1b.svg)](https://arxiv.org/abs/230X.XXXXX)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+
+Official implementation of **Generative PointNet++**, an energy-based model that unifies:
+- EdgeConv for local geometric features
+- Transformers for global context
+- MCMC-based training for point cloud generation/reconstruction
+
+![Teaser Image](docs/teaser.png)
+
+## Key Features
+✔ **State-of-the-art performance** on ModelNet10 (↓12% CD, ↑50% coverage)  
+✔ **Auxiliary-network-free** training via short-run MCMC  
+✔ **Unified architecture** for generation, reconstruction, and classification  
+✔ **Plug-and-play latent space** for interpolation and transfer learning  
+
+## Installation
+```bash
+conda create -n gpointnet python=3.8
+conda activate gpointnet
+pip install -r requirements.txt
 
 This repository contains the official pytorch implementation for the paper "Generative PointNet: Deep Energy-Based Learning on Unordered Point Sets for 3D Generation, Reconstruction and Classification"
 
