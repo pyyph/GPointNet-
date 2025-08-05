@@ -5,29 +5,29 @@ import numpy as np
 from torch.nn import LayerNorm, Sequential as Seq, Linear as Lin, ReLU, BatchNorm1d as BN
 from torch.autograd import Variable
 
-# 核心修改：将 torch_geometric 的导入移至文件顶部
+# Core modification: Move torch_geometric imports to the top of the file
 try:
     from torch_geometric.nn import PointConv, fps, radius, global_max_pool
 except ImportError:
-    # 如果 torch_geometric 未安装，则设置一个标志或打印警告
+    # If torch_geometric is not installed, set a flag or print warning
     PointConv, fps, radius, global_max_pool = None, None, None, None
     print("Warning: torch_geometric not found. PointNet++ related models will be unavailable.")
 
 
-# 新增：Transformer 模块
+# New: Transformer module
 class TransformerBlock(nn.Module):
     """
-    一个基础的 Transformer 模块，包含多头自注意力和一个前馈网络。
+    A basic Transformer module containing multi-head self-attention and a feed-forward network.
     """
     def __init__(self, in_channels, num_heads=8, ff_dim=2048):
         """
-        初始化 Transformer 模块。
-        :param in_channels: int, 输入特征的维度
-        :param num_heads: int, 多头注意力中的头数
-        :param ff_dim: int, 前馈网络中间层的维度
+        Initialize the Transformer module.
+        :param in_channels: int, dimension of input features
+        :param num_heads: int, number of attention heads
+        :param ff_dim: int, dimension of intermediate feed-forward layer
         """
         super(TransformerBlock, self).__init__()
-        # 核心修改：移除 batch_first=True 以兼容 PyTorch 1.8.0
+        # Core modification: Remove batch_first=True for PyTorch 1.8.0 compatibility
         self.attention = nn.MultiheadAttention(embed_dim=in_channels, num_heads=num_heads)
         self.layernorm1 = nn.LayerNorm(in_channels)
         self.layernorm2 = nn.LayerNorm(in_channels)
@@ -35,26 +35,26 @@ class TransformerBlock(nn.Module):
             nn.Linear(in_channels, ff_dim),
             nn.ReLU(),
             nn.Linear(ff_dim, in_channels)
-        ) #TransformerBlock 类实现了 Transformer 架构中的基本组件，包括多头自注意力机制和前馈网络，用于捕获输入数据中的复杂特征关系
+        ) # The TransformerBlock class implements basic components of Transformer architecture including multi-head self-attention and feed-forward network for capturing complex feature relationships in input data
 
     def forward(self, x):
         """
-        Transformer 模块的前向传播。
-        :param x: Tensor, 输入张量，形状为 (B, N, C)，其中 B 是批量大小, N 是点的数量, C 是特征维度。
-        :return: Tensor, 输出张量，形状与输入相同。
+        Forward pass of the Transformer module.
+        :param x: Tensor, input tensor with shape (B, N, C), where B is batch size, N is number of points, C is feature dimension.
+        :return: Tensor, output tensor with same shape as input.
         """
-        # 核心修改：调整维度以匹配 PyTorch 1.8.0 的 MultiheadAttention API (N, B, C)
-        # 在 TransformerBlock 的 forward 方法中，调整了输入张量的维度以匹配 PyTorch 1.8.0 的 MultiheadAttention API
+        # Core modification: Adjust dimensions to match PyTorch 1.8.0 MultiheadAttention API (N, B, C)
+        # In TransformerBlock's forward method, adjust input tensor dimensions to match PyTorch 1.8.0 MultiheadAttention API
         x_transposed = x.permute(1, 0, 2)
-        # 自注意力部分
+        # Self-attention part
         attn_output, _ = self.attention(x_transposed, x_transposed, x_transposed)
-        # 将维度转置回来 (B, N, C)
+        # Transpose dimensions back (B, N, C)
         attn_output = attn_output.permute(1, 0, 2)
-        # 残差连接和层归一化
+        # Residual connection and layer normalization
         x = self.layernorm1(x + attn_output)
-        # 前馈网络部分
+        # Feed-forward network part
         ff_output = self.feed_forward(x)
-        # 第二个残差连接和层归一化
+        # Second residual connection and layer normalization
         x = self.layernorm2(x + ff_output)
         return x
 
@@ -132,8 +132,8 @@ class energy_point_default(torch.nn.Module):
         self.local = torch.nn.Sequential(*net_local)
         self.edge_conv = EdgeConvTorch(
             in_channels=config.hidden_size[0][-1],
-            out_channels=config.hidden_size[0][-1],  # 保持维度一致
-            k=20  # 你可以调这个K值
+            out_channels=config.hidden_size[0][-1],  # Maintain same dimension
+            k=20  # You can adjust this K value
         )
 
         self.globals = torch.nn.Sequential(*net_global)
@@ -373,7 +373,7 @@ class SAModule(torch.nn.Module):
         row, col = radius(pos, pos[idx], self.r, batch, batch[idx],
                           max_num_neighbors=64)
         edge_index = torch.stack([col, row], dim=0)
-        # SAModule的输出x是特征，pos是坐标，batch是批次索引
+        # SAModule output x is features, pos is coordinates, batch is batch indices
         x = self.conv(x, (pos, pos[idx]), edge_index)
         pos, batch = pos[idx], batch[idx]
         return x, pos, batch
@@ -411,9 +411,9 @@ class energy_point_pointnet2(torch.nn.Module):
         
         self.use_pointnet_modules = True
         self.sa1_module = SAModule(0.5, 0.2, MLP([3, 64, 64, 128]))
-        self.transformer1 = TransformerBlock(in_channels=128, num_heads=4) # 在第一个SA模块后添加Transformer
+        self.transformer1 = TransformerBlock(in_channels=128, num_heads=4) # Add Transformer after first SA module
         self.sa2_module = SAModule(0.25, 0.4, MLP([128 + 3, 128, 128, 256]))
-        self.transformer2 = TransformerBlock(in_channels=256, num_heads=8) # 在第二个SA模块后添加Transformer
+        self.transformer2 = TransformerBlock(in_channels=256, num_heads=8) # Add Transformer after second SA module
         self.sa3_module = GlobalSAModule(MLP([256 + 3, 256, 512, 1024]))
 
         self.lin1 = Lin(1024, 512)
@@ -422,7 +422,7 @@ class energy_point_pointnet2(torch.nn.Module):
         if config:
             self.batch_i = torch.arange(config.batch_size, device=config.device).repeat(config.num_point,1).t().reshape(-1)
         else:
-            # 提供一个默认值，以防config为None
+            # Provide a default value in case config is None
             self.batch_i = None
 
 
@@ -430,52 +430,52 @@ class energy_point_pointnet2(torch.nn.Module):
         if not self.use_pointnet_modules:
             raise RuntimeError("torch_geometric is required for PointNet++ forward pass but is not installed.")
 
-        # 确保输入数据是 (B, N, C) 的形式
+        # Ensure input data is in (B, N, C) format
         if data.dim() == 3 and data.shape[1] == 3:
-             # 如果是 (B, C, N)，转换为 (B, N, C)
+             # If (B, C, N), convert to (B, N, C)
              data = data.permute(0, 2, 1)
         
-        # 准备初始数据
-        pos = data.reshape(-1, 3) # 将所有点云平铺 (B*N, 3)
+        # Prepare initial data
+        pos = data.reshape(-1, 3) # Flatten all point clouds (B*N, 3)
         batch_size = data.shape[0]
         num_points = data.shape[1]
         
-        # 在 energy_point_pointnet2 类中，动态生成 batch_i，以适应不同的批量大小。
-        # 根据输入数据的批量大小动态生成批次索引，提高了模型的灵活性。
+        # In energy_point_pointnet2 class, dynamically generate batch_i to adapt to different batch sizes
+        # Dynamically creating batch indices improves model flexibility
         if self.batch_i is None or len(self.batch_i) != batch_size * num_points:
-             # 动态创建 batch 索引
+             # Dynamically create batch indices
              batch = torch.arange(batch_size, device=data.device).repeat_interleave(num_points)
         else:
              batch = self.batch_i[:batch_size * num_points]
 
-        # 在 energy_point_pointnet2 类中，添加了两个 TransformerBlock 实例，分别在第一个和第二个 SAModule 之后。
-        # 两个 TransformerBlock 实例分别在第一个和第二个 SAModule 之后，用于在局部特征提取后应用 Transformer 编码器，以捕获更复杂的特征关系。
-        # 第一个SA模块
+        # In energy_point_pointnet2 class, added two TransformerBlock instances after first and second SAModule
+        # Two TransformerBlock instances after first and second SAModule respectively, applying Transformer encoder after local feature extraction to capture more complex feature relationships
+        # First SA module
         x, pos, batch = self.sa1_module(None, pos, batch)
         
-        # 第一个Transformer模块
-        # SAModule的输出x是 (N', C)，需要变回 (B, N'/B, C)
-        # 注意：由于fps采样，每个点云剩下的点数可能不同，不能直接reshape
-        # 我们需要根据batch索引来处理
-        # 这是一个简化的假设，即每个批次项的点数在采样后仍然相同
+        # First Transformer module
+        # SAModule output x is (N', C), need to reshape back to (B, N'/B, C)
+        # Note: Due to fps sampling, remaining points per cloud may vary, cannot reshape directly
+        # We need to process according to batch indices
+        # This is a simplified assumption that each batch item has same number of points after sampling
         num_points_sa1 = pos.shape[0] // batch_size
         x = x.view(batch_size, num_points_sa1, -1)
         x = self.transformer1(x)
-        x = x.reshape(-1, x.shape[2]) # 变回 (N', C)
+        x = x.reshape(-1, x.shape[2]) # Reshape back to (N', C)
 
-        # 第二个SA模块
+        # Second SA module
         x, pos, batch = self.sa2_module(x, pos, batch)
 
-        # 第二个Transformer模块
+        # Second Transformer module
         num_points_sa2 = pos.shape[0] // batch_size
         x = x.view(batch_size, num_points_sa2, -1)
         x = self.transformer2(x)
-        x = x.reshape(-1, x.shape[2]) # 变回 (N', C)
+        x = x.reshape(-1, x.shape[2]) # Reshape back to (N', C)
 
-        # 全局SA模块
+        # Global SA module
         x, pos, batch = self.sa3_module(x, pos, batch)
 
-        # 分类头
+        # Classification head
         x = F.relu(self.lin1(x))
         x = F.dropout(x, p=0.5, training=self.training)
         x = F.relu(self.lin2(x))
