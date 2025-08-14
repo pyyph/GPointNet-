@@ -1,4 +1,4 @@
-# Local-Global Synergy in 3D Point Cloud Generation: An EdgeConv-Transformer Energy Model with MCMC-Based Learning
+# Local-Global Dynamic Fusion in 3D Point Cloud Generation: An EdgeConv-Transformer Energy Model with MCMC-Based Learning
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![arXiv](https://img.shields.io/badge/arXiv-230X.XXXXX-b31b1b.svg)](https://arxiv.org/abs/230X.XXXXX)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
